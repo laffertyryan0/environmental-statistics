@@ -1,0 +1,250 @@
+---
+title: "Power and Sample Size Computation for a t Test"
+author: "Ryan Lafferty"
+date: "2/13/2020"
+output: pdf_document
+---
+## Introduction
+Consider the problem of testing the hypotheses
+\begin{align*}
+H_0: \mu\le\mu_0\\
+H_1: \mu>\mu_0
+\end{align*}
+where the data are normal with mean $\mu$ and unknown variance $\sigma^2$. As we have shown already, the likelihood ratio test for these hypotheses is Student's t-test. Here we will consider two questions:
+\begin{itemize}
+\item What is the power of the test?
+\item What is the optimal sample size for the test? 
+\end{itemize}
+There are two possible ways we can approach the first question. One method is to compute the power directly by deriving the distribution of the test statistic. Another method would be to run a simulation using generated data and determine the power experimentally. We will describe both methods. 
+
+Once we have determined the power of the test, we will construct an algorithm to find the optimal sample size. 
+
+## Deriving the Non-Central t Distribution
+
+Let $X_1, ..., X_n$ be a sample from $N(\mu, \sigma^2)$ where $\sigma^2>0$ and $\mu\in\mathbb{R}$ and let $\mu_0$ be a fixed real number. We define the statistic $$t = \frac{\sqrt{n}(\bar{X} - \mu_0)}{s},$$ where $\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i$ and $s^2 = \frac{1}{n-1} \sum_{i=1}^n (X_i - \bar{X})^2$. 
+
+Recall that $Z = \frac{\sqrt{n}(\bar{X}-\mu)}{\sigma}$ has a standard normal distribution and that $W = \frac{(n-1)s^2}{\sigma^2}$ has a $\chi^2$ distribution with $n-1$ degrees of freedom. We have that 
+\begin{align*}
+t &= \frac{\sqrt{n}(\bar{X} - \mu_0)}{s}\\
+& = \frac{\sqrt{n}(\bar{X} - \mu + \mu - \mu_0)/\sigma}{s/\sigma}\\
+ & = \frac{Z + \frac{\sqrt{n}(\mu-\mu_0)}{\sigma}}{\sqrt{\frac{W}{n-1}}}
+\end{align*}
+
+Let $U_1 = Z + \delta$ where $\delta = \frac{\sqrt{n}(\mu-\mu_0)}{\sigma}$ and let $U_2 = \frac{W}{\nu}$ where $\nu = n-1$. Note that $U_1$ and $U_2$ are independent with $U_1\sim N(\delta,1)$ and $U_2 \sim \chi^2_\nu$. Thus we can write the joint distribution of $U_1$ and $U_2$ as follows:
+\begin{align*}
+f_{U_1,U_2}(u_1,u_2) = C_0 u_2^{\frac{\nu}{2} -1 } e^{-\frac{1}{2} (u_1 - \delta)^2 - \frac{u_2}{2}}
+\end{align*}
+where $C_0 = \frac{2^{-\frac{\nu+1}{2}}\pi^{-\frac{1}2} }{\Gamma(\frac{\nu}2)}$. We will make the change of variables 
+\begin{align*}
+U_1 &\rightarrow V_1\\
+U_2 &\rightarrow V_2
+\end{align*}
+where $V_1 = t = \frac{U_1}{\sqrt{\frac{U_2}{\nu}}}$ and $V_2 = U_2$. The inverse transformation is given by 
+\begin{align*}
+U_1 & = V_1 \sqrt{\frac{V_2}{\nu}}\\
+U_2 & = V_2 
+\end{align*}
+and the Jacobian is easily seen to be nothing but $\sqrt{\frac{V_2}{\nu}}$. Now we can write the joint pdf of $V_1$ and $V_2$, which is given by 
+\begin{align*}
+f_{V_1,V_2}(v_1,v_2) &= C_0 v_2^{\frac{\nu}{2}-1} e^{-\frac{1}{2}\left(v_1\sqrt{\frac{v_2}{\nu}}-\delta\right)^2 - \frac{v_2}{2}}\sqrt{\frac{v_2}{\nu}}\\
+&= C_1 v_2^{\frac{\nu-1}{2}} e^{-\frac{1}{2}\left(v_1\sqrt{\frac{v_2}{\nu}}-\delta\right)^2 - \frac{v_2}{2}}\\
+\end{align*} 
+where we have defined $C_1 = \nu^{-\frac{1}{2}} C_0$. 
+Now we want to find the marginal pdf of $V_1$ so we need to integrate over all values of $V_2$. We have
+\begin{align*}
+f_{V_1}(v_1) & = C_1\int_{0}^{\infty} v_2^{\frac{\nu-1}{2}} e^{-\frac{1}{2}\left(v_1\sqrt{\frac{v_2}{\nu}}-\delta\right)^2 - \frac{v_2}{2}} dv_2 \\
+& = C_1\int_{0}^{\infty} v_2^{\frac{\nu-1}{2}} e^{-\frac{1}{2}\left(\frac{v_1^2 v_2}{\nu}- 2 \delta v_1\sqrt{\frac{v_2}{\nu}} +\delta^2\right) - \frac{v_2}{2}} dv_2 \\
+%& = C_1\int_{0}^{\infty} v_2^{\frac{\nu-1}{2}} e^{-\frac{v_1^2 v_2}{2\nu}+ \delta v_1\sqrt{\frac{v_2}{\nu}} -\frac{\delta^2}{2} - %\frac{v_2}{2}} dv_2 \\
+& = C_1 e^{-\frac{\delta^2}{2}}\int_{0}^{\infty} v_2^{\frac{\nu-1}{2}} e^{-\frac{1}{2} \left( 1 + \frac{v_1^2}{\nu}\right)v_2}e^{ \delta v_1\sqrt{\frac{v_2}{\nu}} } dv_2 \\
+%& = C_2 \sum_{k=0}^{\infty} \frac{\delta^k v_1^k }{k!}\int_{0}^{\infty} v_2^{\frac{k}{2}}v_2^{\frac{\nu-1}{2}} e^{-\frac{1}{2} %\left( 1 + \frac{v_1^2}{\nu}\right)v_2} dv_2 \\
+& = C_2 \sum_{k=0}^{\infty} \frac{\delta^k v_1^k }{\nu^{\frac{k}{2}}k!}\int_{0}^{\infty} v_2^{\frac{k+\nu-1}{2}} e^{-\frac{1}{2} \left( 1 + \frac{v_1^2}{\nu}\right)v_2} dv_2, \\
+\end{align*}
+where $C_2 = e^{-\frac{\delta^2}{2}} C_1$. We make the substitution $r = \frac{1}{2} \left( 1 + \frac{v_1^2}{\nu}\right) v_2$ which results in
+\begin{align*}
+%
+%f_{V_1}(v_1) & = C_2 \sum_{k=0}^{\infty} \frac{\delta^k v_1^k }{k!}\int_{0}^{\infty} \left(2 \left( 1 + %\frac{v_1^2}{\nu}\right)^{-1} r\right)^{\frac{k+\nu-1}{2}} e^{-r} dv_2 / (\frac{1}{2} \left( 1 + \frac{v_1^2}{\nu}\right))\\
+%
+f_{V_1}(v_1) & = C_2 \sum_{k=0}^{\infty} \frac{ 2^{\frac{k+\nu+1}{2} }\delta^kv_1^k }{\nu^{\frac{k}{2}}k!\left( 1 + \frac{v_1^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}\int_{0}^{\infty}  r^{\frac{k+\nu-1}{2}} e^{-r} dr\\
+& =  C_2 \sum_{k=0}^{\infty} \frac{ 2^{\frac{k+\nu+1}{2} } }{\left( 1 + \frac{v_1^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}\Gamma\left(\frac{k+\nu+1}{2}\right)\frac{\delta^k v_1^k}{\nu^{\frac{k}{2}}k!}\\
+\end{align*}
+Putting back the constants gives 
+\begin{align*}
+f_{V_1}(v_1) & = e^{-\frac{\delta^2}{2}} \nu^{-\frac{1}{2}} \frac{2^{-\frac{\nu+1}{2}}\pi^{-\frac{1}2} }{\Gamma(\frac{\nu}2)}\sum_{k=0}^{\infty} \frac{ 2^{\frac{k+\nu+1}{2} } }{\left( 1 + \frac{v_1^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}\Gamma\left(\frac{k+\nu+1}{2}\right)\frac{\delta^k v_1^k}{\nu^{\frac{k}{2}}k!}\\
+& = e^{-\frac{\delta^2}{2}}  \frac{\pi^{-\frac{1}2} }{\Gamma(\frac{\nu}2 )}\sum_{k=0}^{\infty} \frac{ 2^{\frac{k}{2} } \Gamma\left(\frac{k+\nu+1}{2}\right)}{\left( 1 + \frac{v_1^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}\frac{\delta^k v_1^k}{\nu^{\frac{k+1}{2}}k!}\\
+\end{align*}
+
+Now we can write an R function that will compute the value of this pdf to a specified number of terms. 
+
+```{r noncentraltpdf}
+#note that delta is defined as sqrt(n)*(mu1-mu0)/sigma
+get_t_pdf <- function(t, delta, n, numterms = 20){
+  nu <- n-1
+  const <- exp(-(delta^2)/2)*pi^(-1/2)/gamma(nu/2)
+  sumterms <- 0
+  for(k in 0:numterms){
+    numer <- 2^(k/2)*gamma((k+nu+1)/2)*(delta^k)*t^k
+    denom <- ((1+(t^2)/nu)^((k+nu+1)/2)*factorial(k)*nu^((k+1)/2))
+    sumterms <- sumterms + numer/denom
+    }
+  return(sumterms * const)
+}
+
+```
+
+## Computing the Power Directly
+We have shown that when $t$ is given by $\frac{\sqrt{n}(\bar{x}-\mu_0)}{s}$ and the true mean is $\mu_1$, we have that 
+\begin{align*}
+f_t (v) = e^{-\frac{\delta^2}{2}}  \frac{\pi^{-\frac{1}2} }{\Gamma(\frac{\nu}2 )}\sum_{k=0}^{\infty} \frac{ 2^{\frac{k}{2} } \Gamma\left(\frac{k+\nu+1}{2}\right)}{\left( 1 + \frac{v^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}\frac{\delta^k v^k}{\nu^{\frac{k+1}{2}}k!}\\
+\end{align*}
+
+The power of the t-test can be computed by integrating this expression from $c = t_{\alpha,\nu}$ to $\infty$. This results in 
+\begin{align*}
+\text{PWR}(\delta, \alpha, \nu) & = e^{-\frac{\delta^2}{2}}  \frac{\pi^{-\frac{1}2} }{\Gamma(\frac{\nu}2 )}\sum_{k=0}^{\infty} \frac{ 2^{\frac{k}{2} } \Gamma\left(\frac{k+\nu+1}{2}\right)\delta^k}{\nu^{\frac{k+1}{2}}k!}\int_{t_{\alpha,\nu}}^{\infty}\frac{ v^k}{\left( 1 + \frac{v^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}dv\\
+\end{align*}
+
+We will use numerical methods to compute the integral $I_k = \int_{t_{\alpha,\nu}}^{\infty}\frac{ v^k}{\left( 1 + \frac{v^2}{\nu}\right)^{\frac{k+\nu+1}{2}}}dv$. 
+To make things easier, we first make the substitution $v = \sqrt{\nu} \tan(\frac{\pi}{2}u)$ so that now the limits of integration will go from $c_0 = \frac{2}{\pi}\arctan(\frac{t_{\alpha,\nu}}{\sqrt{\nu}})$ to $1$. We have $dv = \sqrt{\nu}\frac{\pi}{2} \sec^2 (\frac{\pi}{2} u) du$. Thus the integral can be written as 
+\begin{align*}
+I_k &= \int_{c_0}^1 \frac{\nu^{\frac{k}{2}} \tan^k (\frac{\pi}{2} u)}{[\sec^2\left(\frac{\pi}{2}u\right)]^{\frac{k+\nu+1}{2}}} \nu^{\frac{1}2}\frac{\pi}{2}\sec^2\left(\frac{\pi}{2}u\right)du\\
+&= \frac{\pi}{2}\nu^{\frac{k+1}{2}}\int_{c_0}^1 \frac{ \tan^k (\frac{\pi}{2} u)}{[\sec\left(\frac{\pi}{2}u\right)]^{k+\nu-1}} du\\
+%&= \frac{\pi}{2}\nu^{\frac{k+1}{2}}\int_{c_0}^1  \tan^k %\left(\frac{\pi}{2} u\right) %\cos^{k+\nu-1}\left(\frac{\pi}{2}u\right) du\\
+&= \frac{\pi}{2}\nu^{\frac{k+1}{2}}\int_{c_0}^1  \sin^k \left(\frac{\pi}{2} u\right) \cos^{\nu-1}\left(\frac{\pi}{2}u\right) du
+\end{align*}
+
+Now, given an integer $N$, we divide the interval $[c_0,1]$ into $N$ subintervals $(c_0,c_1),...,(c_{n-1},c_n)$, where $N>2$ is even, and apply Simpson's rule to approximate the integral. Recall that Simpson's rule approximates the integral $\int_{a}^b g(x)dx$ by the quantity $$\frac{b-a}{3N} \left[g(x_0)) + 4 g(x_1) + 2 g(x_2) + ... + 4(g(x_{n-1}) + g(x_n)\right].$$
+
+We can implement this in R as follows: 
+
+```{r}
+compute_integral<- function(alpha, nu, k, N){
+  c_0 <- (2/pi)*atan(qt(1-alpha,nu)/sqrt(nu))
+  c_vec <- seq(c_0,1,length.out = N+1)
+  const <- (pi/2)*nu^((k+1)/2)
+  g <- function(u){
+    return(sin((pi/2)*u)^k * cos((pi/2)*u)^(nu-1))
+  }
+  gvals <- g(c_vec)
+  simp_coef <- c(1,rep(c(4,2),N/2-1),4,1)
+  return(const*(1-c_0)*(1/(3*N))*drop(gvals%*%simp_coef))
+}
+```
+
+Then the power will be given by 
+\begin{align*}
+\text{PWR}(\delta, \alpha, \nu) & = e^{-\frac{\delta^2}{2}}  \frac{\pi^{-\frac{1}2} }{\Gamma(\frac{\nu}2 )}\sum_{k=0}^{\infty} \frac{ 2^{\frac{k}{2} } \Gamma\left(\frac{k+\nu+1}{2}\right)\delta^k I_k}{\nu^{\frac{k+1}{2}}k!}
+\end{align*}
+
+Now we have all we need to compute the power of the test. We will define a function `compute_power` as follows\footnote{Note that here we are using the effect size $\Delta = \frac{\delta}{\sqrt{n}} = \frac{(\mu_1-\mu_0)}{\sigma}$. Some treatments may use lowercase $\delta$ to represent this quantity, but have already used $\delta$ to represent the quantity $\frac{\mu_1-\mu_0}{\sigma}$.}:
+
+```{r computepower}
+compute_power <- function(alpha, effect_size, n, 
+                          N = 50, numterms = 100){
+  delta = effect_size * sqrt(n)
+  nu <- n-1
+  const <- exp(-(delta^2)/2)*pi^(-1/2)/gamma(nu/2)
+  sumterms <- 0
+  for(k in 0:numterms){
+    I_k <- compute_integral(alpha,nu,k,N)
+    numer <- 2^(k/2)*gamma((k+nu+1)/2)*(delta^k)*I_k
+    denom <- factorial(k)*nu^((k+1)/2)
+    if(denom != 0){
+      sumterms <- sumterms + numer/denom
+    }
+  }
+  return(sumterms * const)
+}
+
+```
+Note that for large values of $n$ we will need to keep a large number of terms in the sum to ensure accuracy. We will also need to be careful when using large values of $\Delta$ since the numerical approximation does not converge well. Below we give some plots of power vs. effect size for some various values of $n$ and $\alpha$:
+
+```{r echo=FALSE}
+
+
+par(mfrow = c(3,3))
+
+powervals <- c()
+for(alpha in c(0.01,0.05,0.1)){
+  for(n in c(10,50,100)){
+    powervals <- c()
+    dvals <- seq(0,1,by=.1)
+    for(d in dvals){
+      nextval <- compute_power(alpha,d,n,numterms=100)
+      powervals <- append(powervals,nextval)
+    }
+    plot(dvals,powervals,type="l",ylim = c(0,1),
+         xlab = "Effect Size", ylab = "Power",
+         main = paste("alpha = ",alpha,", n = ",n))
+  }
+}
+
+
+```
+
+## Determining the Power by Simulation
+
+Now we will demonstrate another method for determining the power of a test. We define an R function `power_sim` that will compute the power of the t-test by repeatedly generating data from a $N(\mu_1, \sigma^2)$ distribution and counting how many times the null hypothesis is rejected. Dividing the number of times we reject the null by the total number of trials will give us an approximation for the power. 
+
+```{r powersim}
+power_sim <- function(alpha,mu0,mu1,sigma,n,num_trials = 10000){
+  num_rejections <- 0
+  for(trial in 1:num_trials){
+    data <- rnorm(n,mu1,sigma)
+    t <- sqrt(n)*(mean(data)-mu0)/sd(data)
+    t_val <- qt(1-alpha,n-1)
+    if(t>t_val){
+      num_rejections <- num_rejections + 1
+    }
+  }
+  return(num_rejections/num_trials)
+}
+```
+We compare results obtained from the simulation with the same results obtained by the direct method. We imagine that the true mean is $2$ and we are testing for $\mu>1$. Suppose $\sigma = 1$ and $n = 10$. We have the following results. For the direct method we get: 
+
+```{r comparecompute}
+compute_power(.05,(2-1)/1,10)
+```
+For the simulation method we get:
+```{r comparesim}
+power_sim(.05,1,2,1,10)
+```
+One advantage of the simulation method is we don't have to worry as much about problems of numerical stability. The `compute_power` function will give infinite or inaccurate values for certain values of its parameters. 
+
+## Determining the Optimal Sample Size
+
+Given an effect size $\Delta$ and a desired power level $\gamma$ we are interested in determining the smallest sample size such that the power is at least $\gamma$. We will do this algorithmically by starting at a low value of $n$ and incrementing until we get to the desired power. We will define the R function `compute_n` as follows:
+
+``` {r computen}
+compute_n <- function(alpha,effect_size,gamma){
+  n <- 5
+  powerval <- compute_power(alpha,effect_size,n)
+  while(powerval < gamma){
+    n <- n + 1
+    powerval <- compute_power(alpha,effect_size,n)
+  }
+  return(n)
+}
+```
+
+We will try to find the optimal sample size when $\Delta = 1$, $\alpha = .05$, and $\gamma = .9$. 
+
+```{r}
+compute_n(.05,1,.9)
+```
+
+Next we try when $\Delta = .1$, $\alpha = .05$ and $\gamma = .9$.
+```{r}
+compute_n(.05,.1,.9)
+```
+
+We can show these values (for $\gamma = .9, \alpha = .05$) in a plot as follows:
+
+```{r echo=FALSE}
+dvals <- seq(0.1,1,by=.1)
+nvals <- c()
+for(d in dvals){
+  nvals <- append(nvals,compute_n(.05,d,.9))
+}
+plot(dvals,nvals,type= "l",
+     xlab = "Effect Size",
+     ylab = "Sample Size")
+```
